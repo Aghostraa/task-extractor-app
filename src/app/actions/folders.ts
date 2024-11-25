@@ -4,6 +4,7 @@
 import { revalidatePath } from 'next/cache';
 import { FolderActionResponse } from '@/types';
 import prisma from '@/lib/prisma';  // Make sure this import is correct
+import { TaskActionResponse } from '@/app/actions/tasks';
 
 export async function getFolders() {
   try {
@@ -117,5 +118,26 @@ export async function deleteFolder(formData: FormData): Promise<FolderActionResp
   } catch (error) {
     console.error('Delete folder error:', error);
     return { success: false, error: 'Failed to delete folder' };
+  }
+}
+
+export async function assignTaskToFolder(formData: FormData): Promise<TaskActionResponse> {
+  try {
+    const taskId = formData.get('taskId');
+    const folderId = formData.get('folderId');
+
+    if (!taskId || typeof taskId !== 'string') {
+      return { success: false, error: 'Invalid task ID' };
+    }
+
+    const task = await prisma.task.update({
+      where: { id: taskId },
+      data: { folderId: folderId ? String(folderId) : null },
+      include: { folder: true }
+    });
+
+    return { success: true, task };
+  } catch (error) {
+    return { success: false, error: String(error) };
   }
 }

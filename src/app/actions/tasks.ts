@@ -4,6 +4,7 @@
 import { PrismaClient } from '@prisma/client';
 import { Anthropic } from '@anthropic-ai/sdk';
 import { revalidatePath } from 'next/cache';
+import { Task } from '@/types/index';
 
 const prisma = new PrismaClient();
 
@@ -20,7 +21,7 @@ interface TaskResponse {
   error?: string;
 }
 
-interface TaskActionResponse {
+export interface TaskActionResponse {
   success: boolean;
   task?: any;
   error?: string;
@@ -32,6 +33,7 @@ export async function extractAndSaveTasks(formData: FormData): Promise<TaskRespo
     
     if (!text || typeof text !== 'string') {
       throw new Error('No text provided');
+      
     }
 
     const anthropic = new Anthropic({
@@ -78,25 +80,40 @@ export async function extractAndSaveTasks(formData: FormData): Promise<TaskRespo
       category: task.category,
       sourceText: text,
       completed: false,
-      flagged: false
+      flagged: false,
+      status: 'todo',
+      folderId: null // Default to no folder
     }));
 
     // Save tasks to database
-    await prisma.task.createMany({
-      data: validTasks
-    });
+    const createdTasks = await prisma.$transaction(async (tx: Omit<PrismaClient, '$connect' | '$disconnect' | '$on' | '$transaction' | '$use'>) => {
+      await tx.task.createMany({ data: validTasks });
+      return tx.task.findMany({
+        where: { sourceText: text },
+        include: { folder: true },
+        orderBy: { createdAt: 'desc' },
+        take: validTasks.length
+      });
+     });
 
-    // Fetch created tasks
-    const createdTasks = await prisma.task.findMany({
-      orderBy: { createdAt: 'desc' },
-      take: validTasks.length
-    });
-
-    revalidatePath('/');
     return { success: true, tasks: createdTasks };
   } catch (error) {
-    console.error('Task extraction error:', error);
-    return { success: false, error: 'Failed to process tasks' };
+    return { success: false, error: String(error) };
+  }
+}
+
+export async function getTasks() {
+  try {
+    const tasks = await prisma.task.findMany({
+      include: {
+        folder: true
+      },
+      orderBy: { createdAt: 'desc' }
+    });
+    return tasks;
+  } catch (error) {
+    console.error('Get tasks error:', error);
+    return [];
   }
 }
 
@@ -110,7 +127,10 @@ export async function completeTask(formData: FormData): Promise<TaskActionRespon
 
     const task = await prisma.task.update({
       where: { id: taskId },
-      data: { completed: true }
+      data: { 
+        completed: true,
+        status: 'done' // Add this line
+      }
     });
     
     revalidatePath('/');
@@ -154,5 +174,27 @@ export async function deleteTask(formData: FormData): Promise<TaskActionResponse
     return { success: true };
   } catch (error) {
     return { success: false, error: 'Failed to delete task' };
+  }
+}
+
+export async function updateTaskStatus(formData: FormData): Promise<TaskActionResponse> {
+  try {
+    const taskId = formData.get('taskId');
+    const status = formData.get('status');
+    
+    if (!taskId || typeof taskId !== 'string' || !status || typeof status !== 'string') {
+      throw new Error('Invalid task ID or status');
+    }
+
+    const task = await prisma.task.update({
+      where: { id: taskId },
+      data: { status: status as Task['status'] },
+      include: { folder: true }
+    });
+    
+    revalidatePath('/');
+    return { success: true, task };
+  } catch (error) {
+    return { success: false, error: 'Failed to update task status' };
   }
 }

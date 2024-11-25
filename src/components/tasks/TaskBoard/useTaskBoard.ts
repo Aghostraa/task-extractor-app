@@ -1,64 +1,55 @@
-// src/components/TaskBoard.tsx
-'use client'
-
 import { useState, useEffect } from 'react';
-import { TaskInput } from './TaskInput';
-import { TaskList } from './TaskList';
-import { Sidebar } from './Sidebar';
-import KanbanBoard from './KanbanBoard';
+import { Task, ViewType, Folder, TaskCounts } from '@/types/index';
 import { List, Calendar, Flag, Layout } from 'lucide-react';
-import { Task, ViewType, Folder, TaskCounts } from '@/types';
-import { getFolders, createFolder, deleteFolder } from '@/app/actions/folders';
+import { getFolders, createFolder, deleteFolder, updateFolder } from '@/app/actions/folders';
+import { getTasks } from '@/app/actions/tasks';
 
-interface ViewConfig {
-  id: ViewType;
-  name: string;
-  icon: typeof List | typeof Calendar | typeof Flag | typeof Layout;
-  description: string;
-}
-
-export function TaskBoard() {
+export function useTaskBoard() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [folders, setFolders] = useState<Folder[]>([]);
   const [view, setView] = useState<ViewType>('all');
   const [currentFolderId, setCurrentFolderId] = useState<string | undefined>();
   const [isLoading, setIsLoading] = useState(false);
 
-  const viewConfigs: ViewConfig[] = [
+  const viewConfigs = [
     {
-      id: 'all',
+      id: 'all' as const,
       name: 'All Tasks',
       icon: List,
       description: 'View all active tasks'
     },
     {
-      id: 'today',
+      id: 'today' as const,
       name: 'Today',
       icon: Calendar,
       description: 'Tasks created today'
     },
     {
-      id: 'flagged',
+      id: 'flagged' as const,
       name: 'Flagged',
       icon: Flag,
       description: 'Important tasks'
     },
     {
-      id: 'kanban',
+      id: 'kanban' as const,
       name: 'Kanban Board',
       icon: Layout,
       description: 'View tasks in kanban board'
     }
   ];
 
-  useEffect(() => {
-    loadFolders();
-  }, []);
-
-  async function loadFolders() {
-    const loadedFolders = await getFolders();
+  async function loadInitialData() {
+    const [loadedFolders, loadedTasks] = await Promise.all([
+      getFolders(),
+      getTasks()
+    ]);
     setFolders(loadedFolders);
+    setTasks(loadedTasks);
   }
+
+  useEffect(() => {
+    loadInitialData();
+  }, []);
 
   const getTaskCounts = (): TaskCounts => {
     const counts: TaskCounts = {
@@ -72,7 +63,6 @@ export function TaskBoard() {
       kanban: tasks.filter(task => !task.completed).length,
     };
 
-    // Add counts for each folder
     folders.forEach(folder => {
       counts[folder.id] = tasks.filter(task => 
         !task.completed && task.folderId === folder.id
@@ -86,17 +76,15 @@ export function TaskBoard() {
     setView(newView);
     setCurrentFolderId(folderId);
   };
-  
+
   const handleTasksAdded = (newTasks: Task[]) => {
     setTasks(prevTasks => {
-      // If we're in a folder, assign the folder ID to new tasks
       const tasksWithFolder = newTasks.map(task => ({
         ...task,
         folderId: currentFolderId,
         status: 'todo' as const,
       }));
 
-      // Sort tasks by priority and date
       const allTasks = [...tasksWithFolder, ...prevTasks];
       return allTasks.sort((a, b) => {
         if (a.priority !== b.priority) {
@@ -129,7 +117,7 @@ export function TaskBoard() {
 
     const result = await createFolder(formData);
     if (result.success) {
-      loadFolders();
+      loadInitialData();
     }
   };
 
@@ -143,23 +131,36 @@ export function TaskBoard() {
         setCurrentFolderId(undefined);
         setView('all');
       }
-      loadFolders();
+      loadInitialData();
     }
   };
 
-  const getCurrentViewTitle = (): string => {
-    if (currentFolderId) {
-      return folders.find(f => f.id === currentFolderId)?.name || 'Folder';
+  const handleFolderUpdate = async (folderData: Partial<Folder>) => {
+    const formData = new FormData();
+    if (folderData.id) formData.append('id', folderData.id);
+    if (folderData.name) formData.append('name', folderData.name);
+    if (folderData.description) formData.append('description', folderData.description);
+    if (folderData.color) formData.append('color', folderData.color);
+
+    const result = await updateFolder(formData);
+    if (result.success) {
+      loadInitialData();
     }
-    return viewConfigs.find(config => config.id === view)?.name || 'Tasks';
   };
 
-  const getCurrentViewDescription = (): string => {
+  const getCurrentViewInfo = () => {
     if (currentFolderId) {
-      const folderName = folders.find(f => f.id === currentFolderId)?.name;
-      return `Tasks in ${folderName}`;
+      const folder = folders.find(f => f.id === currentFolderId);
+      return {
+        title: folder?.name || 'Folder',
+        description: `Tasks in ${folder?.name}`
+      };
     }
-    return viewConfigs.find(config => config.id === view)?.description || '';
+    const viewConfig = viewConfigs.find(config => config.id === view);
+    return {
+      title: viewConfig?.name || 'Tasks',
+      description: viewConfig?.description || ''
+    };
   };
 
   const getFilteredTasks = (): Task[] => {
@@ -169,59 +170,21 @@ export function TaskBoard() {
     return tasks;
   };
 
-  return (
-    <div className="flex min-h-screen bg-neutral-900 text-white">
-      {/* Sidebar */}
-      <div className="w-64 bg-neutral-800 p-6">
-        <Sidebar
-          currentView={view}
-          currentFolderId={currentFolderId}
-          onViewChange={handleViewChange}
-          taskCounts={getTaskCounts()}
-          folders={folders}
-          onFolderCreate={handleFolderCreate}
-          onFolderDelete={handleFolderDelete}
-          views={viewConfigs}
-        />
-      </div>
-
-      {/* Main Content */}
-      <div className="flex-1 p-6 overflow-auto">
-        <div className="max-w-4xl mx-auto">
-          <header className="mb-8">
-            <h2 className="text-2xl font-semibold">
-              {getCurrentViewTitle()}
-            </h2>
-            <p className="text-neutral-400">
-              {getCurrentViewDescription()}
-            </p>
-          </header>
-
-          <TaskInput 
-            onTasksAdded={handleTasksAdded}
-            isLoading={isLoading}
-            currentFolderId={currentFolderId}
-          />
-
-          {view === 'kanban' ? (
-            <KanbanBoard
-              tasks={getFilteredTasks()}
-              onTaskUpdate={handleTaskUpdate}
-              onTaskDelete={handleTaskDelete}
-              currentFolderId={currentFolderId}
-            />
-          ) : (
-            <TaskList
-              tasks={getFilteredTasks()}
-              view={view}
-              folders={folders}
-              currentFolderId={currentFolderId}
-              onTaskUpdate={handleTaskUpdate}
-              onTaskDelete={handleTaskDelete}
-            />
-          )}
-        </div>
-      </div>
-    </div>
-  );
+  return {
+    tasks: getFilteredTasks(),
+    folders,
+    view,
+    currentFolderId,
+    isLoading,
+    viewConfigs,
+    taskCounts: getTaskCounts(),
+    viewInfo: getCurrentViewInfo(),
+    handleViewChange,
+    handleTasksAdded,
+    handleTaskUpdate,
+    handleTaskDelete,
+    handleFolderCreate,
+    handleFolderDelete,
+    handleFolderUpdate,
+  };
 }

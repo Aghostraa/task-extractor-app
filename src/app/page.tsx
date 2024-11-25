@@ -1,5 +1,5 @@
-import { TaskBoard } from '@/components/TaskBoard';
-import ClientOnly from '@/components/ClientOnly';
+import { TaskBoard } from '@/components/tasks/TaskBoard';
+import  ClientOnly  from '@/components/layout/ClientOnly';
 
 export default function Home() {
   return (
