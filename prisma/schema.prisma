@@ -1,0 +1,36 @@
+// prisma/schema.prisma
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+model Folder {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  color       String?
+  tasks       Task[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Task {
+  id         String   @id @default(cuid())
+  text       String
+  priority   Int
+  category   String
+  completed  Boolean  @default(false)
+  flagged    Boolean  @default(false)
+  status     String   @default("todo") // "todo", "inProgress", "done"
+  sourceText String?
+  folder     Folder?  @relation(fields: [folderId], references: [id], onDelete: SetNull)
+  folderId   String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([folderId])
+}
