@@ -1,7 +1,7 @@
 // src/app/actions.ts
 'use server'
 
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, Prisma } from '@prisma/client';
 import { Anthropic } from '@anthropic-ai/sdk';
 import { revalidatePath } from 'next/cache';
 import { Task } from '@/types/index';
@@ -30,10 +30,10 @@ export interface TaskActionResponse {
 export async function extractAndSaveTasks(formData: FormData): Promise<TaskResponse> {
   try {
     const text = formData.get('text');
+    const folderId = formData.get('folderId');
     
     if (!text || typeof text !== 'string') {
       throw new Error('No text provided');
-      
     }
 
     const anthropic = new Anthropic({
@@ -58,7 +58,6 @@ export async function extractAndSaveTasks(formData: FormData): Promise<TaskRespo
       }]
     });
 
-    // Safely extract text content from the message
     const textContent = message.content
       .filter((block): block is { type: 'text'; text: string } => 
         block.type === 'text')
@@ -73,7 +72,7 @@ export async function extractAndSaveTasks(formData: FormData): Promise<TaskRespo
 
     const extractedTasks = JSON.parse(jsonMatch[0]) as ExtractedTask[];
     
-    // Validate and transform the tasks
+    // Add folder ID after parsing
     const validTasks = extractedTasks.map(task => ({
       text: task.text,
       priority: task.priority,
@@ -82,10 +81,9 @@ export async function extractAndSaveTasks(formData: FormData): Promise<TaskRespo
       completed: false,
       flagged: false,
       status: 'todo',
-      folderId: null // Default to no folder
+      folderId: folderId ? String(folderId) : null
     }));
 
-    // Save tasks to database
     const createdTasks = await prisma.$transaction(async (tx: Omit<PrismaClient, '$connect' | '$disconnect' | '$on' | '$transaction' | '$use'>) => {
       await tx.task.createMany({ data: validTasks });
       return tx.task.findMany({
@@ -94,7 +92,7 @@ export async function extractAndSaveTasks(formData: FormData): Promise<TaskRespo
         orderBy: { createdAt: 'desc' },
         take: validTasks.length
       });
-     });
+    });
 
     return { success: true, tasks: createdTasks };
   } catch (error) {
@@ -196,5 +194,47 @@ export async function updateTaskStatus(formData: FormData): Promise<TaskActionRe
     return { success: true, task };
   } catch (error) {
     return { success: false, error: 'Failed to update task status' };
+  }
+}
+
+export async function createOrUpdateTask(formData: FormData): Promise<TaskActionResponse> {
+  try {
+    const taskId = formData.get('id');
+    const text = formData.get('text');
+    const priority = formData.get('priority');
+    const category = formData.get('category');
+    const folderId = formData.get('folderId');
+
+    if (!text || typeof text !== 'string') {
+      throw new Error('Task text is required');
+    }
+
+    const data = {
+      text,
+      priority: Number(priority),
+      category: String(category),
+      folderId: folderId ? String(folderId) : null
+    };
+
+    const task = taskId
+      ? await prisma.task.update({
+          where: { id: String(taskId) },
+          data,
+          include: { folder: true }
+        })
+      : await prisma.task.create({
+          data: {
+            ...data,
+            status: 'todo',
+            completed: false,
+            flagged: false
+          },
+          include: { folder: true }
+        });
+
+    revalidatePath('/');
+    return { success: true, task };
+  } catch (error) {
+    return { success: false, error: String(error) };
   }
 }

@@ -7,8 +7,18 @@ import { getTasks } from '@/app/actions/tasks';
 export function useTaskBoard() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [folders, setFolders] = useState<Folder[]>([]);
-  const [view, setView] = useState<ViewType>('all');
-  const [currentFolderId, setCurrentFolderId] = useState<string | undefined>();
+  const [view, setView] = useState<ViewType>(() => {
+    if (typeof window !== 'undefined') {
+      return (localStorage.getItem('selectedView') as ViewType) || 'all';
+    }
+    return 'all';
+  });
+  const [currentFolderId, setCurrentFolderId] = useState<string | undefined>(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('selectedFolderId') || undefined;
+    }
+    return undefined;
+  });
   const [isLoading, setIsLoading] = useState(false);
 
   const viewConfigs = [
@@ -38,6 +48,18 @@ export function useTaskBoard() {
     }
   ];
 
+  useEffect(() => {
+    const storedFolderId = localStorage.getItem('selectedFolderId');
+    if (storedFolderId) {
+      setCurrentFolderId(storedFolderId);
+    }
+  }, []);
+  
+  // Move loadInitialData to a separate effect that depends on currentFolderId
+  useEffect(() => {
+    loadInitialData();
+  }, [currentFolderId]);
+
   async function loadInitialData() {
     const [loadedFolders, loadedTasks] = await Promise.all([
       getFolders(),
@@ -45,6 +67,12 @@ export function useTaskBoard() {
     ]);
     setFolders(loadedFolders);
     setTasks(loadedTasks);
+
+    // Validate stored folderId against loaded folders
+    if (currentFolderId && !loadedFolders.some((f: Folder) => f.id === currentFolderId)) {
+      setCurrentFolderId(undefined);
+      localStorage.removeItem('selectedFolderId');
+    }
   }
 
   useEffect(() => {
