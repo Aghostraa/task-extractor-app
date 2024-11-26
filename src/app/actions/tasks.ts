@@ -204,6 +204,7 @@ export async function createOrUpdateTask(formData: FormData): Promise<TaskAction
     const priority = formData.get('priority');
     const category = formData.get('category');
     const folderId = formData.get('folderId');
+    const status = formData.get('status') || 'todo'; // Add status handling
 
     if (!text || typeof text !== 'string') {
       throw new Error('Task text is required');
@@ -213,7 +214,8 @@ export async function createOrUpdateTask(formData: FormData): Promise<TaskAction
       text,
       priority: Number(priority),
       category: String(category),
-      folderId: folderId ? String(folderId) : null
+      folderId: folderId ? String(folderId) : null,
+      status: String(status) as Task['status'] // Add status to the data object
     };
 
     const task = taskId
@@ -225,7 +227,6 @@ export async function createOrUpdateTask(formData: FormData): Promise<TaskAction
       : await prisma.task.create({
           data: {
             ...data,
-            status: 'todo',
             completed: false,
             flagged: false
           },

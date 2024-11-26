@@ -48,7 +48,7 @@ export function TaskDialog({ open, onOpenChange, onSave, folders, task }: TaskDi
         priority: Number(priority),
         category,
         folderId,
-        status: 'todo',
+        status: task?.status || 'todo',
         completed: false,
         flagged: false
       });
@@ -115,7 +115,7 @@ export function TaskDialog({ open, onOpenChange, onSave, folders, task }: TaskDi
                 <SelectValue placeholder="Select a folder" />
               </SelectTrigger>
               <SelectContent className="bg-neutral-700 border-neutral-600 text-white">
-                <SelectItem value="">No Folder</SelectItem>
+                <SelectItem value="none">No Folder</SelectItem>
                 {folders.map((folder) => (
                   <SelectItem key={folder.id} value={folder.id}>
                     {folder.name}
