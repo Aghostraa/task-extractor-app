@@ -5,6 +5,7 @@ import { PrismaClient, Prisma } from '@prisma/client';
 import { Anthropic } from '@anthropic-ai/sdk';
 import { revalidatePath } from 'next/cache';
 import { Task } from '@/types/index';
+import { draftMode } from 'next/headers';
 
 const prisma = new PrismaClient();
 
@@ -198,6 +199,7 @@ export async function updateTaskStatus(formData: FormData): Promise<TaskActionRe
 }
 
 export async function createOrUpdateTask(formData: FormData): Promise<TaskActionResponse> {
+  
   try {
     const taskId = formData.get('id');
     const text = formData.get('text');
@@ -217,6 +219,9 @@ export async function createOrUpdateTask(formData: FormData): Promise<TaskAction
       folderId: folderId ? String(folderId) : null,
       status: String(status) as Task['status'] // Add status to the data object
     };
+    
+
+    console.log(formData)
 
     const task = taskId
       ? await prisma.task.update({
@@ -232,7 +237,8 @@ export async function createOrUpdateTask(formData: FormData): Promise<TaskAction
           },
           include: { folder: true }
         });
-
+        
+    
     revalidatePath('/');
     return { success: true, task };
   } catch (error) {

@@ -96,12 +96,7 @@ export function TaskBoard() {
               onTaskUpdate={handleTaskUpdate}
               onTaskDelete={handleTaskDelete}
               currentFolderId={currentFolderId}
-              onFolderChange={(taskId, folderId) => {
-                const task = tasks.find(t => t.id === taskId);
-                if (task) {
-                  handleTaskUpdate({ ...task, folderId });
-                }
-              }}
+              onFolderChange={handleViewChange}
             />
           ) : (
             <TaskList

@@ -7,7 +7,7 @@ interface KanbanColumn {
 }
 
 
-export function useKanbanBoard(tasks: Task[], currentFolderId?: string, currentCategory?: string) {
+export function useKanbanBoard(tasks: Task[]) {
   const columns: KanbanColumn[] = [
     { title: 'To Do', status: 'todo' },
     { title: 'In Progress', status: 'inProgress' },
@@ -15,11 +15,7 @@ export function useKanbanBoard(tasks: Task[], currentFolderId?: string, currentC
   ];
 
   const getColumnTasks = (status: Task['status']) => {
-    return tasks.filter(task => 
-      (!currentFolderId || task.folderId === currentFolderId) &&
-      (!currentCategory || task.category === currentCategory) &&
-      task.status === status
-    );
+    return tasks.filter(task => task.status === status);
   };
 
   return {

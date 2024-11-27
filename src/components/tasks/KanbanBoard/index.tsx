@@ -25,7 +25,7 @@ export function KanbanBoard({
   currentFolderId,
   onFolderChange
 }: KanbanBoardProps) {
-  const { columns, getColumnTasks } = useKanbanBoard(tasks, currentFolderId);
+  const { columns, getColumnTasks } = useKanbanBoard(tasks);
   const [taskDialogOpen, setTaskDialogOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | undefined>();
   const [selectedStatus, setSelectedStatus] = useState<Task['status']>('todo');
@@ -63,14 +63,17 @@ export function KanbanBoard({
     formData.append('priority', String(taskData.priority));
     formData.append('category', taskData.category || '');
     formData.append('status', editingTask?.status || selectedStatus);
-    if (currentFolderId) formData.append('folderId', currentFolderId);
+    // Use the folder selected in the dialog
+    if (taskData.folderId) {
+        formData.append('folderId', taskData.folderId);
+    }
 
     const result = await createOrUpdateTask(formData);
     if (result.success && result.task) {
-      onTaskUpdate(result.task);
-      setTaskDialogOpen(false);
+        onTaskUpdate(result.task);
+        setTaskDialogOpen(false);
     }
-  };
+};
 
   return (
     <div className="h-full p-6">
