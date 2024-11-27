@@ -1,4 +1,3 @@
-// src/components/tasks/KanbanBoard/KanbanColumn.tsx
 import { Task } from '@/types/index';
 import { KanbanCard } from './KanbanCard';
 import { Plus } from 'lucide-react';
@@ -14,6 +13,7 @@ interface KanbanColumnProps {
   currentFolderId?: string;
   onAddTask: () => void;
   onEditTask: (task: Task) => void;
+  isMobile?: boolean;
 }
 
 export function KanbanColumn({ 
@@ -25,18 +25,22 @@ export function KanbanColumn({
   onTaskUpdate, 
   onTaskDelete,
   onAddTask,
-  onEditTask
+  onEditTask,
+  isMobile
 }: KanbanColumnProps) {
   const handleDragOver = (e: React.DragEvent) => {
+    if (isMobile) return;
     e.preventDefault();
     e.currentTarget.classList.add('bg-neutral-700/50');
   };
 
   const handleDragLeave = (e: React.DragEvent) => {
+    if (isMobile) return;
     e.currentTarget.classList.remove('bg-neutral-700/50');
   };
 
   const handleDrop = (e: React.DragEvent) => {
+    if (isMobile) return;
     e.preventDefault();
     e.currentTarget.classList.remove('bg-neutral-700/50');
     const taskId = e.dataTransfer.getData('taskId');
@@ -45,23 +49,28 @@ export function KanbanColumn({
 
   return (
     <div
-      className="flex-1 min-w-[300px] max-w-[350px] bg-neutral-800 rounded-lg p-4"
+      className={`
+        bg-neutral-800 rounded-lg p-4
+        ${isMobile ? 'w-full' : 'flex-1 min-w-[300px] max-w-[350px]'}
+      `}
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
     >
       <div className="flex items-center justify-between mb-4">
-        <h3 className="text-lg font-semibold">{title}</h3>
-        <Button
-          size="sm"
-          variant="ghost"
-          className="p-2 hover:bg-neutral-700 text-neutral-400 hover:text-white"
-          onClick={onAddTask}
-        >
-          <Plus size={16} />
-        </Button>
+        <h3 className={`font-semibold ${isMobile ? 'text-xl' : 'text-lg'}`}>{title}</h3>
+        {!isMobile && (
+          <Button
+            size="sm"
+            variant="ghost"
+            className="p-2 hover:bg-neutral-700 text-neutral-400 hover:text-white"
+            onClick={onAddTask}
+          >
+            <Plus size={16} />
+          </Button>
+        )}
       </div>
-      <div className="space-y-3">
+      <div className={`space-y-3 ${isMobile ? 'pb-20' : ''}`}>
         {tasks.map((task) => (
           <KanbanCard
             key={task.id}
@@ -69,6 +78,7 @@ export function KanbanColumn({
             onUpdate={onTaskUpdate}
             onDelete={onTaskDelete}
             onEdit={onEditTask}
+            isMobile={isMobile}
           />
         ))}
       </div>

@@ -54,7 +54,34 @@
   * {
     @apply border-border;
   }
+  
+  html {
+    @apply antialiased;
+  }
+
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground text-base md:text-lg;
+  }
+}
+
+@layer utilities {
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+  
+  .touch-scrolling {
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .container-fluid {
+    @apply w-full px-4 md:px-6 lg:px-8;
+  }
+
+  .container-narrow {
+    @apply max-w-5xl mx-auto;
+  }
+
+  .container-wide {
+    @apply max-w-7xl mx-auto;
   }
 }

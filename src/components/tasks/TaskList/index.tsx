@@ -11,6 +11,7 @@ interface TaskListProps {
   currentFolderId?: string;
   onTaskUpdate: (task: Task) => void;
   onTaskDelete: (taskId: string) => void;
+  isMobile?: boolean;
 }
 
 export function TaskList({ 
